@@ -7,9 +7,5 @@ type Handler interface {
 	Read(id string) ([]byte, error)
 	Write(id string, data []byte) error
 	Destroy(id string) error
-	GC(maxLifeTime time.Duration)
-}
-
-type Store struct {
-	handler Handler
+	GC(maxLifeTime time.Duration) error
 }
