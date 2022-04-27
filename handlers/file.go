@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -24,7 +25,10 @@ func (f *FileSessionHandler) Init(id string) error {
 	}
 
 	if ok, _ := file.PathExists(f.resolvePath(id)); !ok {
-		_, e := os.Create(f.resolvePath(id))
+		f, e := os.Create(f.resolvePath(id))
+		if e == nil {
+			defer f.Close()
+		}
 		return e
 	}
 
@@ -50,6 +54,19 @@ func (f *FileSessionHandler) Destroy(id string) error {
 
 func (f *FileSessionHandler) GC(maxLifeTime time.Duration) error {
 	return filepath.WalkDir(f.dir, func(path string, d fs.DirEntry, err error) error {
+		fileInfo, e := d.Info()
+		if e != nil {
+			return e
+		}
+
+		if fileInfo.IsDir() {
+			return nil
+		}
+
+		if fileInfo.ModTime().Before(time.Now().Add(-maxLifeTime)) {
+			fmt.Printf("gc %s\n", path)
+			return os.Remove(path)
+		}
 
 		return err
 	})
