@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -64,7 +63,6 @@ func (f *FileSessionHandler) GC(maxLifeTime time.Duration) error {
 		}
 
 		if fileInfo.ModTime().Before(time.Now().Add(-maxLifeTime)) {
-			fmt.Printf("gc %s\n", path)
 			return os.Remove(path)
 		}
 
