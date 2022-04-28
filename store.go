@@ -3,6 +3,7 @@ package session
 import (
 	"errors"
 	"io"
+	"reflect"
 	"sync"
 
 	"github.com/vmihailenco/msgpack/v5"
@@ -16,7 +17,7 @@ type SessionID string
 
 type SessionData map[string][]byte
 
-type Store[T interface{}] struct {
+type Store struct {
 	Handler Handler
 	ID      SessionID
 	raw     []byte
@@ -26,7 +27,7 @@ type Store[T interface{}] struct {
 	started bool
 }
 
-func (s *Store[T]) Start() error {
+func (s *Store) Start() error {
 
 	err := s.Handler.Init(string(s.ID))
 	if err == nil {
@@ -36,7 +37,7 @@ func (s *Store[T]) Start() error {
 	return err
 }
 
-func (s *Store[T]) Save() error {
+func (s *Store) Save() error {
 	if e := s.mergeDecoded(); e != nil {
 		return e
 	}
@@ -48,7 +49,7 @@ func (s *Store[T]) Save() error {
 	return s.Handler.Write(string(s.ID), row)
 }
 
-func (s *Store[T]) mergeDecoded() error {
+func (s *Store) mergeDecoded() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.data == nil {
@@ -65,7 +66,7 @@ func (s *Store[T]) mergeDecoded() error {
 	return nil
 }
 
-func (s *Store[T]) loadSession() error {
+func (s *Store) loadSession() error {
 	var err error
 	s.raw, err = s.Handler.Read(string(s.ID))
 	if err != nil {
@@ -82,41 +83,47 @@ func (s *Store[T]) loadSession() error {
 	return nil
 }
 
-func (s *Store[T]) Get(key string) (*T, error) {
+func (s *Store) Get(key string, dest interface{}) error {
 	if !s.started {
-		return nil, ErrNotStarted
+		return ErrNotStarted
 	}
 
-	if t, ok := s.getDecoded(key); ok {
-		return t, nil
+	if d, ok := s.getDecoded(key); ok {
+		val := reflect.ValueOf(dest)
+		reflect.Indirect(val).Set(reflect.Indirect(reflect.ValueOf(d)))
+		return nil
 	}
-	var result T
 
 	s.mu.RLock()
 	raw, ok := s.data[key]
 	s.mu.RUnlock()
 	if ok {
-		err := msgpack.Unmarshal(raw, &result)
+		err := msgpack.Unmarshal(raw, dest)
 		if err != nil && err != io.EOF {
-			return nil, err
+			return err
 		}
 	}
-	s.setDecoded(key, &result)
-	return &result, nil
+
+	s.setDecoded(key, dest)
+	return nil
 }
 
-func (s *Store[T]) getDecoded(key string) (*T, bool) {
+func (s *Store) Put(key string, dest interface{}) error {
+	return s.setDecoded(key, dest)
+}
+
+func (s *Store) getDecoded(key string) (interface{}, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	if dec, ok := s.decoded[key]; ok {
-		return dec.(*T), ok
+		return dec, ok
 	}
 
 	return nil, false
 }
 
-func (s *Store[T]) setDecoded(key string, value *T) error {
+func (s *Store) setDecoded(key string, value interface{}) error {
 	if !s.started {
 		return ErrNotStarted
 	}
@@ -129,8 +136,8 @@ func (s *Store[T]) setDecoded(key string, value *T) error {
 	return nil
 }
 
-func NewStore[T interface{}](handler Handler, id string) *Store[T] {
-	return &Store[T]{
+func NewStore(handler Handler, id string) *Store {
+	return &Store{
 		Handler: handler,
 		ID:      SessionID(id),
 	}
