@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/enorith/supports/file"
@@ -16,9 +17,12 @@ var (
 
 type FileSessionHandler struct {
 	dir string
+	mu  sync.RWMutex
 }
 
 func (f *FileSessionHandler) Init(id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if ok, _ := file.PathExists(f.dir); !ok {
 		return os.MkdirAll(f.dir, FileMode)
 	}
@@ -35,6 +39,9 @@ func (f *FileSessionHandler) Init(id string) error {
 }
 
 func (f *FileSessionHandler) Read(id string) ([]byte, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
 	row, e := os.ReadFile(f.resolvePath(id))
 	if e == io.EOF {
 		return nil, nil
@@ -44,14 +51,20 @@ func (f *FileSessionHandler) Read(id string) ([]byte, error) {
 }
 
 func (f *FileSessionHandler) Write(id string, data []byte) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	return os.WriteFile(f.resolvePath(id), data, FileMode)
 }
 
 func (f *FileSessionHandler) Destroy(id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	return os.Remove(f.resolvePath(id))
 }
 
 func (f *FileSessionHandler) GC(maxLifeTime time.Duration) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	return filepath.WalkDir(f.dir, func(path string, d fs.DirEntry, err error) error {
 		fileInfo, e := d.Info()
 		if e != nil {
@@ -75,5 +88,5 @@ func (f *FileSessionHandler) resolvePath(id string) string {
 }
 
 func NewFileSessionHandler(dir string) *FileSessionHandler {
-	return &FileSessionHandler{dir: dir}
+	return &FileSessionHandler{dir: dir, mu: sync.RWMutex{}}
 }
