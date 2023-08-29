@@ -23,12 +23,6 @@ type FileSessionHandler struct {
 func (f *FileSessionHandler) Init(id string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if ok, _ := file.PathExists(f.dir); !ok {
-		e := os.MkdirAll(f.dir, FileMode)
-		if e != nil {
-			return e
-		}
-	}
 
 	if ok, _ := file.PathExists(f.resolvePath(id)); !ok {
 		f, e := os.Create(f.resolvePath(id))
@@ -91,5 +85,9 @@ func (f *FileSessionHandler) resolvePath(id string) string {
 }
 
 func NewFileSessionHandler(dir string) *FileSessionHandler {
+	if ok, _ := file.PathExists(dir); !ok {
+		os.MkdirAll(dir, FileMode)
+	}
+
 	return &FileSessionHandler{dir: dir, mu: sync.RWMutex{}}
 }
