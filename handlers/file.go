@@ -24,7 +24,10 @@ func (f *FileSessionHandler) Init(id string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if ok, _ := file.PathExists(f.dir); !ok {
-		return os.MkdirAll(f.dir, FileMode)
+		e := os.MkdirAll(f.dir, FileMode)
+		if e != nil {
+			return e
+		}
 	}
 
 	if ok, _ := file.PathExists(f.resolvePath(id)); !ok {
