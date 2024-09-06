@@ -57,6 +57,14 @@ func (s *Session) Set(key string, dest interface{}) error {
 	return s.setDecoded(key, dest)
 }
 
+func (s *Session) Delete(key string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	delete(s.rowData, key)
+	delete(s.decoded, key)
+}
+
 func (s *Session) getDecoded(key string) (interface{}, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
