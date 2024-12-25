@@ -22,6 +22,9 @@ type Manager struct {
 }
 
 func (s *Manager) Start(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.started[id] {
 		return nil
 	}
@@ -77,8 +80,6 @@ func (s *Manager) loadSession(id string) error {
 	if err != nil && err != io.EOF {
 		return err
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	session := Session{
 		ID:      id,
@@ -102,14 +103,14 @@ func (s *Manager) Get(id string) *Session {
 	session := Session{
 		ID: id,
 	}
+	s.mu.RLock()
 
+	defer s.mu.RUnlock()
 	if !s.started[id] {
 		return &session
 	}
 
-	s.mu.RLock()
 	se, ok := s.sessions[id]
-	s.mu.RUnlock()
 	if ok {
 		return se
 	}
