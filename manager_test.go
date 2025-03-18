@@ -38,6 +38,8 @@ func TestManater(t *testing.T) {
 			fmt.Println(se)
 		}(i)
 	}
+
+	s.Save(id)
 }
 
 func TestSession(t *testing.T) {

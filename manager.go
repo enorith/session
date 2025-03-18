@@ -41,6 +41,8 @@ func (s *Manager) Save(id string) error {
 	if e := s.prepareSessions(id); e != nil {
 		return e
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	row, e := msgpack.Marshal(s.rowSession[id])
 	if e != nil {
