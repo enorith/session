@@ -50,6 +50,12 @@ func (s *Manager) Save(id string) error {
 	}
 	return s.Handler.Write(id, row)
 }
+func (s *Manager) Destroy(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.Handler.Destroy(id)
+}
 
 func (s *Manager) prepareSessions(id string) error {
 	s.mu.Lock()
